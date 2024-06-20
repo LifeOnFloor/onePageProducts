@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Editor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/theme/material-darker.min.css">
+    <style>
+        body {
+            font-family: 'Cascadia Code', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: white;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: #24292e;
+        }
+
+        .CodeMirror {
+            height: 95%;
+        }
+
+        .container {
+            height: 100%;
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(27, 31, 35, 0.12), 0 8px 24px rgba(27, 31, 35, 0.12);
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #editor {
+            height: calc(100% - 40px);
+            border: 1px solid #d1d5da;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .select-container {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 10px;
+        }
+
+        select {
+            padding: 5px;
+            font-size: 14px;
+            border-radius: 4px;
+            border: 1px solid #d1d5da;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="select-container">
+            <select id="language" onchange="changeLanguage()">
+                <option value="javascript">JavaScript</option>
+                <option value="xml">HTML/XML</option>
+                <option value="css">CSS</option>
+                <option value="python">Python</option>
+                <option value="ruby">Ruby</option>
+                <option value="php">PHP</option>
+                <option value="java">Java</option>
+                <option value="markdown">Markdown</option>
+                <option value="sql">SQL</option>
+            </select>
+        </div>
+        <textarea id="editor"></textarea>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/javascript/javascript.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/xml/xml.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/css/css.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/python/python.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/ruby/ruby.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/php/php.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/clike/clike.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/markdown/markdown.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/sql/sql.js"></script>
+    <script src="https://unpkg.com/prettier@2.3.2/standalone.js"></script>
+    <script src="https://unpkg.com/prettier@2.3.2/parser-babel.js"></script>
+    <script src="https://unpkg.com/prettier@2.3.2/parser-html.js"></script>
+    <script src="https://unpkg.com/prettier@2.3.2/parser-postcss.js"></script>
+    <script src="https://unpkg.com/prettier@2.3.2/parser-typescript.js"></script>
+    <script src="https://unpkg.com/prettier@2.3.2/parser-markdown.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sql-formatter@3.0.0/dist/sql-formatter.min.js"></script>
+    <script>
+        var editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+            lineNumbers: true,
+            mode: 'javascript',
+            theme: 'material-darker',
+            extraKeys: {
+                "Shift-Tab": function (cm) {
+                    cm.execCommand("indentLess");
+                },
+                "Ctrl-Enter": function (cm) {
+                    formatCode();
+                }
+            },
+            viewportMargin: Infinity
+        });
+
+        function changeLanguage() {
+            var language = document.getElementById('language').value;
+            var mode = 'javascript';
+            switch (language) {
+                case 'xml':
+                    mode = 'xml';
+                    break;
+                case 'css':
+                    mode = 'css';
+                    break;
+                case 'python':
+                    mode = 'python';
+                    break;
+                case 'ruby':
+                    mode = 'ruby';
+                    break;
+                case 'php':
+                    mode = 'php';
+                    break;
+                case 'java':
+                    mode = 'text/x-java';
+                    break;
+                case 'markdown':
+                    mode = 'markdown';
+                    break;
+                case 'sql':
+                    mode = 'sql';
+                    break;
+            }
+            editor.setOption('mode', mode);
+        }
+
+        function formatCode() {
+            var code = editor.getValue();
+            var language = document.getElementById('language').value;
+            var formattedCode;
+
+            try {
+                switch (language) {
+                    case 'javascript':
+                    case 'java':
+                        formattedCode = prettier.format(code, { parser: "babel", plugins: prettierPlugins });
+                        break;
+                    case 'xml':
+                        formattedCode = prettier.format(code, { parser: "html", plugins: prettierPlugins });
+                        break;
+                    case 'css':
+                        formattedCode = prettier.format(code, { parser: "css", plugins: prettierPlugins });
+                        break;
+                    case 'sql':
+                        formattedCode = sqlFormatter.format(code);
+                        break;
+                    case 'python':
+                    case 'ruby':
+                    case 'php':
+                        // For simplicity, we are not including specific formatter for these languages.
+                        // You can add specific formatter for these languages if available.
+                        formattedCode = code;
+                        break;
+                    case 'markdown':
+                        formattedCode = prettier.format(code, { parser: "markdown", plugins: prettierPlugins });
+                        break;
+                    default:
+                        formattedCode = code;
+                        break;
+                }
+                editor.setValue(formattedCode);
+            } catch (e) {
+                console.error("Error formatting code: ", e);
+            }
+        }
+    </script>
+</body>
+
+</html>
