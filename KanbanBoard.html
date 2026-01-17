@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Powered Kanban Board</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap"
+        rel="stylesheet">
+
+    <style>
+        :root {
+            /* Color Palette */
+            --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            --column-bg: #ebecf0;
+            --card-bg: #ffffff;
+            --text-primary: #172b4d;
+            --text-secondary: #5e6c84;
+            --accent-color: #0079bf;
+            --accent-hover: #026aa7;
+            --danger-color: #eb5a46;
+            --ai-color: #6554C0;
+            /* AI Feature Color */
+            --ai-gradient: linear-gradient(135deg, #6554C0 0%, #8777D9 100%);
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --radius-md: 8px;
+            --radius-lg: 12px;
+        }
+
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            /* 全体のスクロールを防止 */
+        }
+
+        /* --- Header --- */
+        header {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+            z-index: 10;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--accent-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .header-controls button {
+            background: white;
+            border: 1px solid #dfe1e6;
+            color: var(--text-secondary);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .header-controls button:hover {
+            background: #f4f5f7;
+            color: var(--text-primary);
+            border-color: #c1c7d0;
+        }
+
+        /* AI Button Style */
+        .header-controls button.ai-header-btn {
+            border: 1px solid transparent;
+            background: var(--ai-gradient);
+            color: white;
+            box-shadow: 0 2px 5px rgba(101, 84, 192, 0.3);
+        }
+
+        .header-controls button.ai-header-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(101, 84, 192, 0.4);
+            filter: brightness(1.1);
+        }
+
+        .header-controls button.reset-btn:hover {
+            color: var(--danger-color);
+            border-color: var(--danger-color);
+            background: #fff5f5;
+        }
+
+        /* --- Board Layout --- */
+        .board-container {
+            flex: 1;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 20px;
+
+            /* Scroll Snap for Mobile */
+            scroll-snap-type: x mandatory;
+        }
+
+        .board {
+            display: flex;
+            gap: 20px;
+            height: 100%;
+            align-items: flex-start;
+            /* 幅をコンテンツに合わせる */
+            width: max-content;
+        }
+
+        /* --- Columns --- */
+        .column {
+            background-color: var(--column-bg);
+            border-radius: var(--radius-lg);
+            width: 300px;
+            max-height: 100%;
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow-sm);
+            flex-shrink: 0;
+            /* 縮小しない */
+
+            /* Mobile Snap Alignment */
+            scroll-snap-align: center;
+        }
+
+        .column-header {
+            padding: 14px 14px 10px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .column-delete-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0; /* デフォルトで非表示 */
+            transition: all 0.2s;
+        }
+
+        .column:hover .column-delete-btn {
+            opacity: 0.6;
+        }
+
+        .column-delete-btn:hover {
+            opacity: 1 !important;
+            background-color: rgba(235, 90, 70, 0.1);
+            color: var(--danger-color);
+        }
+
+        .column-delete-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* モバイルでは常に表示 */
+        @media (hover: none) {
+            .column-delete-btn {
+                opacity: 0.6;
+            }
+        }
+
+        .badge {
+            background: rgba(0, 0, 0, 0.08);
+            color: var(--text-secondary);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        /* --- Task List --- */
+        .task-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 0 10px 10px;
+            min-height: 100px;
+            transition: background-color 0.2s;
+        }
+
+        /* スクロールバーのカスタマイズ */
+        .task-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .task-list::-webkit-scrollbar-thumb {
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
+        }
+
+        .task-list.drag-over {
+            background-color: rgba(0, 121, 191, 0.08);
+            border-radius: var(--radius-md);
+        }
+
+        /* --- Task Card --- */
+        .task-card {
+            background-color: var(--card-bg);
+            border-radius: var(--radius-md);
+            padding: 12px;
+            margin-bottom: 8px;
+            box-shadow: 0 1px 2px rgba(9, 30, 66, 0.15);
+            cursor: grab;
+            position: relative;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            transition: transform 0.2s, box-shadow 0.2s;
+            user-select: none;
+            /* テキスト選択防止 */
+            border-left: 4px solid transparent;
+            padding-right: 60px;
+            /* ボタン領域確保 */
+        }
+
+        /* カラムごとのアクセントカラー（オプション） */
+        #todo .task-card {
+            border-left-color: #ff9f1a;
+        }
+
+        #inprogress .task-card {
+            border-left-color: #0079bf;
+        }
+
+        #done .task-card {
+            border-left-color: #00c2e0;
+            text-decoration: line-through;
+            color: #888;
+        }
+
+        .task-card:hover {
+            box-shadow: 0 4px 8px rgba(9, 30, 66, 0.15);
+            transform: translateY(-2px);
+            background-color: #fafbfc;
+        }
+
+        .task-card:active {
+            cursor: grabbing;
+        }
+
+        .task-card.dragging {
+            opacity: 0.6;
+            transform: rotate(3deg) scale(1.02);
+            box-shadow: var(--shadow-md);
+            z-index: 100;
+        }
+
+        /* Card Actions (AI & Delete) */
+        .card-actions {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            /* デフォルトで非表示 */
+            transition: opacity 0.2s;
+        }
+
+        /* モバイルでは常に表示、PCではホバー時のみ */
+        @media (hover: hover) {
+            .card-actions {
+                opacity: 0;
+            }
+
+            .task-card:hover .card-actions {
+                opacity: 1;
+            }
+        }
+
+        @media (hover: none) {
+            .card-actions {
+                opacity: 1;
+            }
+        }
+
+        .icon-btn {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid transparent;
+            color: #6b778c;
+            cursor: pointer;
+            width: 26px;
+            height: 26px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .icon-btn:hover {
+            background-color: #ebecf0;
+            color: #172b4d;
+        }
+
+        .icon-btn.ai-btn {
+            color: var(--ai-color);
+        }
+
+        .icon-btn.ai-btn:hover {
+            background-color: #f3f0ff;
+            color: #553C9A;
+        }
+
+        .icon-btn.delete-btn:hover {
+            color: var(--danger-color);
+            background: #ffe3e3;
+        }
+
+        .icon-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* --- Task Meta (Date) --- */
+        .task-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            font-size: 0.75rem;
+        }
+
+        .task-date {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(0, 0, 0, 0.05);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--text-secondary);
+        }
+
+        .task-date svg {
+            width: 12px;
+            height: 12px;
+        }
+
+        .task-date.overdue {
+            background: #ffe3e3;
+            color: var(--danger-color);
+            font-weight: 600;
+        }
+
+        .task-date.due-soon {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        /* --- Add Task Form --- */
+        .add-task-container {
+            padding: 8px;
+            margin-top: auto;
+            /* 一番下に配置 */
+        }
+
+        .add-btn {
+            width: 100%;
+            padding: 8px 12px;
+            background-color: transparent;
+            color: var(--text-secondary);
+            border: none;
+            text-align: left;
+            cursor: pointer;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: background 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .add-btn:hover {
+            background-color: rgba(9, 30, 66, 0.08);
+            color: var(--text-primary);
+        }
+
+        .add-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .input-group {
+            background: white;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-md);
+            padding: 8px;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .add-task-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #dfe1e6;
+            border-radius: 4px;
+            box-sizing: border-box;
+            resize: none;
+            font-family: inherit;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+
+        .add-task-input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 2px rgba(0, 121, 191, 0.2);
+        }
+
+        .add-task-options {
+            margin-bottom: 8px;
+        }
+
+        .date-input {
+            border: 1px solid #dfe1e6;
+            border-radius: 4px;
+            padding: 6px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .input-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .btn-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 1.5rem;
+            line-height: 1;
+            padding: 0 8px;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(4px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* --- Loading Overlay --- */
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            z-index: 9999;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--ai-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 10px;
+        }
+
+        .loading-text {
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* --- Responsive Design (Mobile) --- */
+        @media (max-width: 768px) {
+            .board-container {
+                padding: 10px 15px;
+                /* 横パディング調整 */
+            }
+
+            .board {
+                gap: 15px;
+                /* 最後の要素の右側に余白を作る */
+                padding-right: 20px;
+            }
+
+            .column {
+                /* 画面幅の85%にして、次のカラムが見えるようにする */
+                width: 85vw;
+                min-width: 85vw;
+                height: 100%;
+            }
+
+            h1 {
+                font-size: 1.1rem;
+            }
+
+            .header-controls button span {
+                display: none;
+                /* モバイルではテキストを隠してアイコンだけにする */
+            }
+
+            .header-controls button {
+                padding: 8px;
+            }
+        }
+
+        /* --- Modal --- */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(2px);
+        }
+
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: var(--radius-lg);
+            width: 90%;
+            max-width: 400px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .modal-content h2 {
+            margin-top: 0;
+            color: var(--text-primary);
+            font-size: 1.2rem;
+            margin-bottom: 16px;
+        }
+
+        .modal-content label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-secondary {
+            background: #ebecf0;
+            color: var(--text-primary);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .btn-secondary:hover {
+            background: #dfe1e6;
+        }
+    </style>
+
+    <!-- スマホでのドラッグ＆ドロップを可能にするPolyfill -->
+    <script src="https://unpkg.com/mobile-drag-drop@2.3.0-rc.2/index.min.js"></script>
+    <script>
+        // Polyfill options
+        MobileDragDrop.polyfill({
+            dragImageCenterOnTouch: true
+        });
+
+        // タッチ操作時のスクロール干渉を防ぐ
+        window.addEventListener('touchmove', function () { }, { passive: false });
+    </script>
+</head>
+
+<body>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Geminiが考えています...<br>✨</div>
+    </div>
+
+    <header>
+        <h1>
+            <!-- SVG Icon: Kanban -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="9" y1="3" x2="9" y2="21"></line>
+            </svg>
+            Kanban Board
+        </h1>
+        <div class="header-controls">
+            <!-- AI Brainstorm Button -->
+            <button class="ai-header-btn" onclick="aiBrainstorm()" title="AIにタスクを提案してもらう">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path
+                        d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83">
+                    </path>
+                </svg>
+                <span>AIで提案</span>
+            </button>
+
+            <!-- Settings Button -->
+            <button onclick="openSettings()" title="設定">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+                <span>設定</span>
+            </button>
+
+            <!-- Reset Button -->
+            <button class="reset-btn" onclick="clearAllData()" title="すべてのデータを削除">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 6h18"></path>
+                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                </svg>
+                <span>全削除</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="board-container">
+        <div class="board">
+
+            <!-- Todo Column -->
+            <div class="column" id="todo">
+                <div class="column-header">
+                    <span>未着手 😴</span>
+                    <div class="header-right">
+                        <button class="column-delete-btn" onclick="clearColumn('todo')" title="このリストを空にする">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                        </button>
+                        <span class="badge count">0</span>
+                    </div>
+                </div>
+                <div class="task-list" ondrop="drop(event)" ondragover="allowDrop(event)"
+                    ondragleave="dragLeave(event)">
+                    <!-- Tasks inserted here -->
+                </div>
+                <div class="add-task-container">
+                    <button class="add-btn" onclick="showInput(this)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        カードを追加
+                    </button>
+                </div>
+            </div>
+
+            <!-- In Progress Column -->
+            <div class="column" id="inprogress">
+                <div class="column-header">
+                    <span>進行中 🔥</span>
+                    <div class="header-right">
+                        <button class="column-delete-btn" onclick="clearColumn('inprogress')" title="このリストを空にする">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                        </button>
+                        <span class="badge count">0</span>
+                    </div>
+                </div>
+                <div class="task-list" ondrop="drop(event)" ondragover="allowDrop(event)"
+                    ondragleave="dragLeave(event)">
+                    <!-- Tasks inserted here -->
+                </div>
+                <div class="add-task-container">
+                    <button class="add-btn" onclick="showInput(this)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        カードを追加
+                    </button>
+                </div>
+            </div>
+
+            <!-- Done Column -->
+            <div class="column" id="done">
+                <div class="column-header">
+                    <span>完了 🎉</span>
+                    <div class="header-right">
+                        <button class="column-delete-btn" onclick="clearColumn('done')" title="このリストを空にする">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                        </button>
+                        <span class="badge count">0</span>
+                    </div>
+                </div>
+                <div class="task-list" ondrop="drop(event)" ondragover="allowDrop(event)"
+                    ondragleave="dragLeave(event)">
+                    <!-- Tasks inserted here -->
+                </div>
+                <div class="add-task-container">
+                    <button class="add-btn" onclick="showInput(this)">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        カードを追加
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Edit Task Modal -->
+    <div id="edit-task-modal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h2>タスクの編集</h2>
+            <input type="hidden" id="edit-task-id">
+            <label for="edit-task-text">内容</label>
+            <textarea id="edit-task-text" class="add-task-input" rows="3"></textarea>
+            
+            <label for="edit-task-date">期限日</label>
+            <input type="date" id="edit-task-date" class="date-input">
+            
+            <div class="modal-actions">
+                <button onclick="closeEditModal()" class="btn-secondary">キャンセル</button>
+                <button onclick="saveTaskEdit()" class="btn-primary">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h2>設定</h2>
+            <label for="api-key-input">Gemini API Key</label>
+            <input type="password" id="api-key-input" class="add-task-input" placeholder="AI機能を使用するにはAPIキーを入力してください">
+            <div class="modal-actions">
+                <button onclick="closeSettings()" class="btn-secondary">キャンセル</button>
+                <button onclick="saveSettings()" class="btn-primary">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- データのロードと保存 (LocalStorage) ---
+        const STORAGE_KEY = 'kanban_data_v2';
+        const API_KEY_STORAGE = 'kanban_api_key';
+        // API Key for Gemini. In a production app, use a proxy. 
+        // Client-side environment requires an empty string here for the runtime to inject it, or manual input.
+        const apiKey = "";
+
+        function saveData() {
+            const columns = ['todo', 'inprogress', 'done'];
+            const data = {};
+
+            columns.forEach(colId => {
+                const column = document.getElementById(colId);
+                const taskList = column.querySelector('.task-list');
+                const tasks = [];
+                taskList.querySelectorAll('.task-card').forEach(card => {
+                    tasks.push({
+                        id: card.id,
+                        text: card.querySelector('.task-text').innerText,
+                        dueDate: card.dataset.dueDate || null
+                    });
+                });
+                data[colId] = tasks;
+            });
+
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            updateCounts();
+        }
+
+        function loadData() {
+            const dataJSON = localStorage.getItem(STORAGE_KEY);
+            if (!dataJSON) return;
+
+            const data = JSON.parse(dataJSON);
+
+            Object.keys(data).forEach(colId => {
+                const column = document.getElementById(colId);
+                if (column) {
+                    const taskList = column.querySelector('.task-list');
+                    taskList.innerHTML = '';
+                    data[colId].forEach(taskData => {
+                        const card = createTaskElement(taskData.text, taskData.id, taskData.dueDate);
+                        taskList.appendChild(card);
+                    });
+                }
+            });
+            updateCounts();
+        }
+
+        function clearAllData() {
+            if (confirm('すべてのタスクを削除しますか？\nこの操作は元に戻せません。')) {
+                localStorage.removeItem(STORAGE_KEY);
+                document.querySelectorAll('.task-list').forEach(list => list.innerHTML = '');
+                updateCounts();
+            }
+        }
+
+        function clearColumn(columnId) {
+            const column = document.getElementById(columnId);
+            const taskList = column.querySelector('.task-list');
+            
+            if (taskList.children.length === 0) return;
+
+            if (confirm('このリストのすべてのタスクを削除しますか？')) {
+                taskList.innerHTML = '';
+                saveData();
+            }
+        }
+
+        // --- Gemini AI Logic ---
+
+        function showLoading(show) {
+            document.getElementById('loading-overlay').style.display = show ? 'flex' : 'none';
+        }
+
+        async function callGemini(prompt) {
+            const storedKey = localStorage.getItem(API_KEY_STORAGE);
+            const keyToUse = storedKey || apiKey;
+
+            if (!keyToUse) {
+                alert("APIキーが設定されていません。設定ボタンからAPIキーを入力してください。");
+                openSettings();
+                return null;
+            }
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${keyToUse}`;
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }]
+            };
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+            } catch (error) {
+                console.error("Gemini API Error:", error);
+                alert("AIの呼び出し中にエラーが発生しました。\n" + error.message);
+                return null;
+            }
+        }
+
+        // Feature 1: Brainstorming (Add multiple tasks to Todo)
+        async function aiBrainstorm() {
+            const goal = prompt("達成したい目標や、やりたいことを入力してください。\nAIが具体的なタスクリストを提案します。\n例：「引越しの準備」「Reactの勉強」「ダイエットの計画」");
+            if (!goal) return;
+
+            showLoading(true);
+
+            // Prompt for Japanese output
+            const promptText = `あなたはプロのプロジェクトマネージャーです。
+目標「${goal}」を達成するために必要な具体的なタスクを5つから8つ挙げてください。
+出力は純粋なテキストのみで行い、各行に1つのタスクを記述してください。
+箇条書き記号（- や 1.）やマークダウン、余計な説明文は一切含めないでください。
+日本語で出力してください。`;
+
+            const result = await callGemini(promptText);
+
+            showLoading(false);
+
+            if (result) {
+                const tasks = result.split('\n').filter(line => line.trim() !== '');
+                const todoList = document.querySelector('#todo .task-list');
+
+                tasks.forEach((taskText, index) => {
+                    setTimeout(() => {
+                        const newCard = createTaskElement(taskText.trim());
+                        newCard.style.opacity = '0';
+                        newCard.style.transform = 'translateY(10px)';
+                        todoList.appendChild(newCard);
+
+                        requestAnimationFrame(() => {
+                            newCard.style.transition = 'all 0.3s ease';
+                            newCard.style.opacity = '1';
+                            newCard.style.transform = 'translateY(0)';
+                        });
+                    }, index * 100); // Stagger animations
+                });
+
+                setTimeout(saveData, tasks.length * 100 + 200);
+            }
+        }
+
+        // Feature 2: Breakdown (Subdivide a task)
+        async function aiBreakdown(cardId, taskText) {
+            if (!confirm(`「${taskText}」を細分化しますか？\nAIが具体的な3つのステップを提案し、このカードの下に追加します。`)) return;
+
+            showLoading(true);
+
+            const promptText = `あなたはタスク管理のアシスタントです。
+タスク「${taskText}」を完了するための、具体的で実行可能な3つのサブタスク（ステップ）を作成してください。
+出力は純粋なテキストのみで行い、各行に1つのサブタスクを記述してください。
+箇条書き記号や番号はつけないでください。
+日本語で出力してください。`;
+
+            const result = await callGemini(promptText);
+
+            showLoading(false);
+
+            if (result) {
+                const subTasks = result.split('\n').filter(line => line.trim() !== '');
+                const parentCard = document.getElementById(cardId);
+                const taskList = parentCard.parentElement; // .task-list
+
+                // Find index to insert after
+                const cardsArray = Array.from(taskList.children);
+                const index = cardsArray.indexOf(parentCard);
+
+                // Insert subtasks after the parent card
+                // Note: We iterate in reverse to keep order correct when using 'after'
+                // Actually, let's just insert one by one after the reference node, updating reference node
+                let referenceNode = parentCard;
+
+                subTasks.forEach(subText => {
+                    const newCard = createTaskElement(`↪ ${subText.trim()}`);
+                    // Insert after referenceNode
+                    if (referenceNode.nextSibling) {
+                        taskList.insertBefore(newCard, referenceNode.nextSibling);
+                    } else {
+                        taskList.appendChild(newCard);
+                    }
+                    referenceNode = newCard; // Update reference for next insertion
+
+                    // Simple animation class
+                    newCard.style.animation = 'fadeIn 0.5s ease';
+                });
+
+                saveData();
+            }
+        }
+
+        // --- Settings Functions ---
+        function openSettings() {
+            const modal = document.getElementById('settings-modal');
+            const input = document.getElementById('api-key-input');
+            input.value = localStorage.getItem(API_KEY_STORAGE) || '';
+            modal.style.display = 'flex';
+        }
+
+        function closeSettings() {
+            document.getElementById('settings-modal').style.display = 'none';
+        }
+
+        function saveSettings() {
+            const input = document.getElementById('api-key-input');
+            const key = input.value.trim();
+            if (key) {
+                localStorage.setItem(API_KEY_STORAGE, key);
+            } else {
+                localStorage.removeItem(API_KEY_STORAGE);
+            }
+            closeSettings();
+            alert('設定を保存しました。');
+        }
+
+        // --- Edit Modal Functions ---
+        function openEditModal(cardId) {
+            const card = document.getElementById(cardId);
+            if (!card) return;
+
+            const text = card.querySelector('.task-text').innerText;
+            const dueDate = card.dataset.dueDate || '';
+
+            document.getElementById('edit-task-id').value = cardId;
+            document.getElementById('edit-task-text').value = text;
+            document.getElementById('edit-task-date').value = dueDate;
+
+            document.getElementById('edit-task-modal').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-task-modal').style.display = 'none';
+        }
+
+        function saveTaskEdit() {
+            const cardId = document.getElementById('edit-task-id').value;
+            const newText = document.getElementById('edit-task-text').value.trim();
+            const newDate = document.getElementById('edit-task-date').value;
+
+            if (!newText) {
+                alert('タスクの内容を入力してください。');
+                return;
+            }
+
+            const card = document.getElementById(cardId);
+            if (card) {
+                card.querySelector('.task-text').innerText = newText;
+                updateTaskDateDisplay(card, newDate);
+                saveData();
+            }
+            closeEditModal();
+        }
+
+        // --- タスク要素の作成 ---
+
+        function createTaskElement(text, id = null, dueDate = null) {
+            const div = document.createElement('div');
+            div.className = 'task-card';
+            div.draggable = true;
+            div.id = id || 'task-' + Date.now() + Math.random().toString(36).substr(2, 9);
+
+            // ドラッグイベントの設定
+            div.addEventListener('dragstart', drag);
+            div.addEventListener('dragend', dragEnd);
+            
+            // 編集モーダルを開くイベント
+            div.addEventListener('click', (e) => {
+                if (e.target.closest('.icon-btn')) return; // ボタンクリック時は無視
+                openEditModal(div.id);
+            });
+
+            const span = document.createElement('span');
+            span.className = 'task-text';
+            span.innerText = text;
+            div.appendChild(span);
+
+            // Due Date Display
+            updateTaskDateDisplay(div, dueDate);
+
+            // Actions container
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'card-actions';
+
+            // 1. AI Breakdown Button
+            const aiBtn = document.createElement('button');
+            aiBtn.className = 'icon-btn ai-btn';
+            aiBtn.title = 'AIで細分化';
+            aiBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path></svg>';
+
+            aiBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                aiBreakdown(div.id, text);
+            });
+            // Touch support
+            aiBtn.addEventListener('touchend', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                aiBreakdown(div.id, text);
+            });
+
+            // 2. Delete Button
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'icon-btn delete-btn';
+            deleteBtn.title = '削除';
+            deleteBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+
+            const deleteHandler = function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (confirm('このタスクを削除しますか？')) {
+                    div.style.transform = 'scale(0.9) opacity(0)';
+                    setTimeout(() => {
+                        div.remove();
+                        saveData();
+                    }, 200);
+                }
+            };
+
+            deleteBtn.addEventListener('click', deleteHandler);
+            deleteBtn.addEventListener('touchend', deleteHandler);
+
+            actionsDiv.appendChild(aiBtn);
+            actionsDiv.appendChild(deleteBtn);
+            div.appendChild(actionsDiv);
+
+            return div;
+        }
+
+        function updateTaskDateDisplay(card, dueDate) {
+            // 既存のmetaを削除
+            const existingMeta = card.querySelector('.task-meta');
+            if (existingMeta) {
+                existingMeta.remove();
+            }
+
+            if (dueDate) {
+                card.dataset.dueDate = dueDate;
+                const metaDiv = document.createElement('div');
+                metaDiv.className = 'task-meta';
+                
+                const dateSpan = document.createElement('span');
+                dateSpan.className = 'task-date';
+                
+                // Check if overdue
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const due = new Date(dueDate);
+                due.setHours(0, 0, 0, 0); 
+                
+                if (due < today) {
+                    dateSpan.classList.add('overdue');
+                    dateSpan.title = '期限切れ';
+                } else if (due.getTime() === today.getTime()) {
+                    dateSpan.classList.add('due-soon');
+                    dateSpan.title = '今日が期限';
+                }
+
+                // Format date (MM/DD)
+                const dateStr = due.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' });
+                
+                dateSpan.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> ${dateStr}`;
+                
+                metaDiv.appendChild(dateSpan);
+                card.appendChild(metaDiv);
+            } else {
+                delete card.dataset.dueDate;
+            }
+        }
+
+        // --- 入力フォーム制御 ---
+
+        function showInput(btn) {
+            const container = btn.parentElement;
+            if (container.querySelector('.input-group')) return;
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'input-group';
+
+            const input = document.createElement('textarea');
+            input.className = 'add-task-input';
+            input.placeholder = '何をする必要がありますか？';
+            input.rows = 2;
+
+            const optionsDiv = document.createElement('div');
+            optionsDiv.className = 'add-task-options';
+            const dateInput = document.createElement('input');
+            dateInput.type = 'date';
+            dateInput.className = 'date-input';
+            optionsDiv.appendChild(dateInput);
+
+            const actions = document.createElement('div');
+            actions.className = 'input-actions';
+
+            const saveBtn = document.createElement('button');
+            saveBtn.innerText = '追加';
+            saveBtn.className = 'btn-primary';
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.innerHTML = '&times;';
+            cancelBtn.className = 'btn-close';
+
+            actions.appendChild(saveBtn);
+            actions.appendChild(cancelBtn);
+
+            wrapper.appendChild(input);
+            wrapper.appendChild(optionsDiv);
+            wrapper.appendChild(actions);
+
+            btn.style.display = 'none';
+            container.appendChild(wrapper);
+
+            input.focus();
+
+            const confirmAdd = () => {
+                const text = input.value.trim();
+                const date = dateInput.value;
+                if (text) {
+                    const column = container.parentElement;
+                    const taskList = column.querySelector('.task-list');
+                    const newCard = createTaskElement(text, null, date);
+
+                    newCard.style.opacity = '0';
+                    newCard.style.transform = 'translateY(10px)';
+                    taskList.appendChild(newCard);
+
+                    requestAnimationFrame(() => {
+                        newCard.style.transition = 'all 0.3s ease';
+                        newCard.style.opacity = '1';
+                        newCard.style.transform = 'translateY(0)';
+                    });
+
+                    saveData();
+                }
+                cleanup();
+            };
+
+            const cleanup = () => {
+                wrapper.remove();
+                btn.style.display = 'flex';
+            };
+
+            saveBtn.onclick = confirmAdd;
+            cancelBtn.onclick = cleanup;
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    confirmAdd();
+                }
+                if (e.key === 'Escape') {
+                    cleanup();
+                }
+            });
+        }
+
+        // --- ドラッグ＆ドロップ制御 ---
+
+        function drag(ev) {
+            ev.dataTransfer.setData("text", ev.target.id);
+            ev.dataTransfer.effectAllowed = "move";
+            setTimeout(() => {
+                ev.target.classList.add('dragging');
+            }, 0);
+        }
+
+        function dragEnd(ev) {
+            ev.target.classList.remove('dragging');
+            document.querySelectorAll('.task-list').forEach(list => {
+                list.classList.remove('drag-over');
+            });
+        }
+
+        function allowDrop(ev) {
+            ev.preventDefault();
+            const taskList = ev.target.closest('.task-list');
+            if (taskList) {
+                taskList.classList.add('drag-over');
+                ev.dataTransfer.dropEffect = "move";
+            }
+        }
+
+        function dragLeave(ev) {
+            const taskList = ev.target.closest('.task-list');
+            if (taskList && !taskList.contains(ev.relatedTarget)) {
+                taskList.classList.remove('drag-over');
+            }
+        }
+
+        function drop(ev) {
+            ev.preventDefault();
+            const data = ev.dataTransfer.getData("text");
+            const draggedElement = document.getElementById(data);
+
+            const dropTarget = ev.target;
+            const taskList = dropTarget.closest('.task-list');
+
+            if (taskList && draggedElement) {
+                taskList.classList.remove('drag-over');
+                draggedElement.classList.remove('dragging');
+                taskList.appendChild(draggedElement);
+                saveData();
+            }
+        }
+
+        // --- ユーティリティ ---
+        function updateCounts() {
+            const columns = ['todo', 'inprogress', 'done'];
+            columns.forEach(colId => {
+                const col = document.getElementById(colId);
+                const count = col.querySelector('.task-list').children.length;
+                col.querySelector('.count').innerText = count;
+            });
+        }
+
+        // --- 初期化 ---
+        window.onload = loadData;
+
+    </script>
+</body>
+
+</html>
